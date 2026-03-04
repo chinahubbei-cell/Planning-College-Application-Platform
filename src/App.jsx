@@ -17,6 +17,7 @@ import PlanDetail from './pages/Plan/PlanDetail';
 import Analytics from './pages/Analytics/Analytics';
 import Assistant from './pages/Assistant/Assistant';
 import Profile from './pages/Profile/Profile';
+import Pricing from './pages/Pricing/Pricing';
 import DataSyncAdmin from './pages/Admin/DataSync';
 import { NotFound } from './pages/Placeholder/Placeholder';
 
@@ -72,6 +73,9 @@ function AppContent() {
 
         {/* Profile */}
         <Route path="/profile" element={<Profile />} />
+
+        {/* Pricing */}
+        <Route path="/pricing" element={<Pricing />} />
 
         {/* Admin Data Sync — admin only */}
         <Route path="/admin/data" element={

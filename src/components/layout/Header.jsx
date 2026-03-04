@@ -10,6 +10,7 @@ const NAV_ITEMS = [
     { path: '/universities', label: '院校查询', icon: '🏫' },
     { path: '/majors', label: '专业查询', icon: '📚' },
     { path: '/plans', label: '方案管理', icon: '📋' },
+    { path: '/pricing', label: '套餐订阅', icon: '💳' },
     { path: '/analytics', label: '数据分析', icon: '📊' },
     { path: '/assistant', label: 'AI 助手', icon: '🤖' },
 ];

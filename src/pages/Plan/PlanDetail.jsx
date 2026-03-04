@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPlanById, removePlanItem } from '../../services/planService';
+import { getMyAccess } from '../../services/commerceService';
 import useAuthStore from '../../stores/useAuthStore';
 import Card, { CardBody, CardHeader } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
@@ -14,10 +15,14 @@ export default function PlanDetail() {
     const { user } = useAuthStore();
     const [plan, setPlan] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [access, setAccess] = useState({ is_paid: false, expires_at: null });
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
-        if (user) fetchPlan();
-        else setLoading(false);
+        if (user) {
+            fetchPlan();
+            fetchAccess();
+        } else setLoading(false);
     }, [user, id]);
 
     const fetchPlan = async () => {
@@ -29,6 +34,45 @@ export default function PlanDetail() {
             console.error('Failed to fetch plan:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchAccess = async () => {
+        try {
+            const data = await getMyAccess();
+            setAccess(data);
+        } catch (err) {
+            console.error('Failed to fetch access:', err);
+        }
+    };
+
+    const handleExportReport = async () => {
+        if (!access?.is_paid) {
+            window.alert('当前为免费版，请先开通 299 套餐后再导出报告');
+            return;
+        }
+
+        if (!plan) return;
+        setExporting(true);
+        try {
+            const payload = {
+                generated_at: new Date().toISOString(),
+                plan_name: plan.name,
+                score: plan.score,
+                province: plan.province,
+                items: plan.plan_items || [],
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `志愿方案报告-${plan.name || 'plan'}.json`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -100,6 +144,9 @@ export default function PlanDetail() {
                     <div className="plan-detail__stat">
                         <span className="plan-detail__stat-num">{plan.plan_items?.length || 0}</span>
                         <span className="plan-detail__stat-label">志愿数</span>
+                    </div>
+                    <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button size="sm" onClick={handleExportReport} loading={exporting}>📄 导出报告</Button>
                     </div>
                 </div>
             </div>
