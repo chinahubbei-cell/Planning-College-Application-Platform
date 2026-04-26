@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建未订阅测试用户</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        input[type="password"] {
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 6px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+        .result.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+        .result h3 {
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+        .result p {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        .result code {
+            background: rgba(255,255,255,0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .info-box {
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .info-box p {
+            color: #1e40af;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .info-box a {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .user-list {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+        .user-list h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .user-item .email {
+            font-weight: 600;
+            color: #333;
+        }
+        .user-item .status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .user-item .status.paid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .user-item .status.free {
+            background: #fef3c7;
+            color: #92400e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👤 创建未订阅测试用户</h1>
+        <p class="subtitle">一键创建免费的未订阅测试账户</p>
+
+        <div class="info-box">
+            <h4>📌 说明</h4>
+            <p>
+                此工具将创建一个新的测试用户（未订阅状态），用于测试套餐订阅页面的未订阅显示。
+                <br><br>
+                <strong>需要 Service Role Key：</strong>
+                <a href="https://supabase.com/dashboard" target="_blank">Supabase Dashboard</a>
+                → Project Settings → API → service_role (secret)
+            </p>
+        </div>
+
+        <form id="createForm">
+            <div class="form-group">
+                <label for="serviceRoleKey">Service Role Key *</label>
+                <input
+                    type="password"
+                    id="serviceRoleKey"
+                    required
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="supabaseUrl">Supabase URL</label>
+                <input
+                    type="text"
+                    id="supabaseUrl"
+                    value="https://ysrcdhxjbllznvekapyy.supabase.co"
+                    readonly
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">新用户邮箱 *</label>
+                <input
+                    type="email"
+                    id="email"
+                    value="free@gaokao.com"
+                    required
+                    placeholder="free@gaokao.com"
+                >
+                <p class="help-text">将创建一个未订阅的测试用户</p>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码</label>
+                <input
+                    type="text"
+                    id="password"
+                    value="Free@2026"
+                    placeholder="默认: Free@2026"
+                >
+            </div>
+
+            <button type="submit" id="submitBtn">🚀 创建未订阅测试用户</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>正在创建用户...</p>
+            </div>
+        </form>
+
+        <div class="result" id="result"></div>
+
+        <div class="user-list" id="userList" style="display: none;">
+            <h3>📋 当前测试用户列表</h3>
+            <div id="users"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        const supabaseUrl = document.getElementById('supabaseUrl').value;
+
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const serviceRoleKey = document.getElementById('serviceRoleKey').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value.trim() || 'Free@2026';
+
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            submitBtn.disabled = true;
+            loading.classList.add('active');
+            result.style.display = 'none';
+
+            try {
+                // 创建 Supabase 客户端
+                const supabase = createClient(supabaseUrl, serviceRoleKey, {
+                    auth: {
+                        autoRefreshToken: false,
+                        persistSession: false
+                    }
+                });
+
+                // 1. 检查用户是否已存在
+                const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+
+                if (listError) {
+                    throw new Error(`获取用户列表失败: ${listError.message}`);
+                }
+
+                const existingUser = users.find(u => u.email === email);
+
+                let userId;
+
+                if (existingUser) {
+                    userId = existingUser.id;
+                    console.log('用户已存在，ID:', userId);
+                } else {
+                    // 2. 创建新用户
+                    const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+                        email: email,
+                        password: password,
+                        email_confirm: true,
+                        user_metadata: {
+                            name: '免费用户'
+                        }
+                    });
+
+                    if (createError) {
+                        throw new Error(`创建用户失败: ${createError.message}`);
+                    }
+
+                    userId = newUser.user.id;
+                }
+
+                // 3. 创建 user_profiles 记录
+                const { error: profileError } = await supabase
+                    .from('user_profiles')
+                    .upsert({
+                        id: userId,
+                        name: '免费用户',
+                        role: 'user'
+                    }, {
+                        onConflict: 'id'
+                    });
+
+                if (profileError) {
+                    console.warn('创建 user_profile 失败:', profileError.message);
+                }
+
+                // 4. 确保 user_access 不存在或 is_paid = false
+                // 先删除可能存在的记录
+                await supabase
+                    .from('user_access')
+                    .delete()
+                    .eq('user_id', userId);
+
+                // 创建 is_paid = false 的记录
+                const { error: accessError } = await supabase
+                    .from('user_access')
+                    .insert({
+                        user_id: userId,
+                        is_paid: false,
+                        expires_at: null
+                    });
+
+                if (accessError) {
+                    console.warn('创建 user_access 失败:', accessError.message);
+                }
+
+                // 5. 验证最终状态
+                const { data: finalAccess } = await supabase
+                    .from('user_access')
+                    .select('is_paid, expires_at')
+                    .eq('user_id', userId)
+                    .maybeSingle();
+
+                const isPaid = finalAccess?.is_paid || false;
+
+                // 显示成功消息
+                showResult('success', `
+                    <h3>✅ 未订阅测试用户创建成功！</h3>
+                    <p><strong>📧 邮箱：</strong><code>${email}</code></p>
+                    <p><strong>🔑 密码：</strong><code>${password}</code></p>
+                    <p><strong>💰 订阅状态：</strong><span style="color: #92400e; font-weight: 600;">未订阅</span></p>
+                    <hr style="margin: 16px 0; border: none; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <p><strong>🧪 测试步骤：</strong></p>
+                    <ol style="margin-left: 20px; line-height: 1.8;">
+                        <li>访问 <a href="http://localhost:5173/login" target="_blank" style="color: #065f46;">http://localhost:5173/login</a></li>
+                        <li>使用上述邮箱和密码登录</li>
+                        <li>访问 <a href="http://localhost:5173/pricing" target="_blank" style="color: #065f46;">http://localhost:5173/pricing</a></li>
+                        <li>应该显示"立即开通（299 元）"按钮</li>
+                    </ol>
+                `);
+
+                // 显示用户列表
+                await displayUsers(supabase);
+
+            } catch (error) {
+                showResult('error', `
+                    <h3>❌ 创建失败</h3>
+                    <p>${error.message}</p>
+                    <p style="margin-top: 12px; font-size: 13px;">请检查 Service Role Key 是否正确</p>
+                `);
+            } finally {
+                submitBtn.disabled = false;
+                loading.classList.remove('active');
+            }
+        });
+
+        function showResult(type, html) {
+            const result = document.getElementById('result');
+            result.className = `result ${type}`;
+            result.innerHTML = html;
+            result.style.display = 'block';
+        }
+
+        async function displayUsers(supabase) {
+            const { data: { users } } = await supabase.auth.admin.listUsers();
+            const userList = document.getElementById('userList');
+            const usersDiv = document.getElementById('users');
+
+            const testUsers = users.filter(u =>
+                u.email.includes('gaokao.com')
+            );
+
+            usersDiv.innerHTML = testUsers.map(user => `
+                <div class="user-item">
+                    <span class="email">${user.email}</span>
+                    <span class="status ${user.email.includes('admin') || user.email.includes('test') ? 'paid' : 'free'}">
+                        ${user.email.includes('admin') || user.email.includes('test') ? '已付费' : '未订阅'}
+                    </span>
+                </div>
+            `).join('');
+
+            userList.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

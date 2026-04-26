@@ -7,13 +7,6 @@ const useUIStore = create((set) => ({
         theme: state.theme === 'dark' ? 'light' : 'dark',
     })),
 
-    // Sidebar
-    sidebarOpen: true,
-    toggleSidebar: () => set((state) => ({
-        sidebarOpen: !state.sidebarOpen,
-    })),
-    setSidebarOpen: (open) => set({ sidebarOpen: open }),
-
     // Mobile menu
     mobileMenuOpen: false,
     setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
@@ -21,15 +14,11 @@ const useUIStore = create((set) => ({
     // Toast notifications
     toasts: [],
     addToast: (toast) => set((state) => ({
-        toasts: [...state.toasts, { id: Date.now(), ...toast }],
+        toasts: [...state.toasts, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, ...toast }],
     })),
     removeToast: (id) => set((state) => ({
         toasts: state.toasts.filter((t) => t.id !== id),
     })),
-
-    // Loading states
-    globalLoading: false,
-    setGlobalLoading: (loading) => set({ globalLoading: loading }),
 }));
 
 export default useUIStore;

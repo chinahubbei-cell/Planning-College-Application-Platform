@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signIn } from '../../services/authService';
 import Button from '../../components/common/Button';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
+import { hasSupabaseConfig } from '../../services/supabaseConfig';
 import './Auth.css';
 
 export default function Login() {
+    const configReady = hasSupabaseConfig();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -13,6 +16,7 @@ export default function Login() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!configReady) return;
         setError('');
         setLoading(true);
 
@@ -77,6 +81,14 @@ export default function Login() {
                         </div>
                     )}
 
+                    {!configReady && (
+                        <ConfigErrorNotice
+                            serviceName="认证服务"
+                            detail="当前环境缺少 Supabase 配置，登录和注册请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                            className="animate-fade-in"
+                        />
+                    )}
+
                     <form className="auth-form" onSubmit={handleSubmit}>
                         <div className="auth-field">
                             <label htmlFor="login-email" className="auth-label">邮箱</label>
@@ -89,6 +101,7 @@ export default function Login() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 autoComplete="email"
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -104,6 +117,7 @@ export default function Login() {
                                 required
                                 minLength={6}
                                 autoComplete="current-password"
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -112,6 +126,7 @@ export default function Login() {
                             fullWidth
                             size="lg"
                             loading={loading}
+                            disabled={!configReady}
                         >
                             登录
                         </Button>

@@ -56,12 +56,23 @@ export async function syncUniversities(supabase: any) {
     // Fetch existing universities to avoid duplicates
     const { data: existingUnis, error: fetchError } = await supabase
         .from('universities')
-        .select('name');
+        .select('name, code');
 
     if (fetchError) throw fetchError;
 
-    const existingNames = new Set(existingUnis?.map((u: any) => u.name) || []);
-    const newUniversities = undergrads.filter(u => !existingNames.has(u.name));
+    const existingNames = new Set(existingUnis?.map((u: any) => u.name).filter(Boolean) || []);
+    const existingCodes = new Set(existingUnis?.map((u: any) => u.code).filter(Boolean) || []);
+    const seenNames = new Set<string>();
+    const seenCodes = new Set<string>();
+    const newUniversities = undergrads.filter((uni) => {
+        if (!uni.name || !uni.code) return false;
+        if (existingNames.has(uni.name) || existingCodes.has(uni.code)) return false;
+        if (seenNames.has(uni.name) || seenCodes.has(uni.code)) return false;
+
+        seenNames.add(uni.name);
+        seenCodes.add(uni.code);
+        return true;
+    });
 
     console.log(`Found ${newUniversities.length} new universities to insert.`);
 
@@ -77,7 +88,7 @@ export async function syncUniversities(supabase: any) {
         const chunk = newUniversities.slice(i, i + BATCH_SIZE);
         const { error: insertError } = await supabase
             .from('universities')
-            .upsert(chunk, { onConflict: 'name', ignoreDuplicates: true });
+            .upsert(chunk, { onConflict: 'code', ignoreDuplicates: true });
 
         if (insertError) {
             console.error('Insert chunk error:', insertError);

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import Card, { CardBody } from '../../components/common/Card';
 import Button from '../../components/common/Button';
-import supabase from '../../services/supabase';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
+import { callEdgeFunction } from '../../services/edgeFunctionService';
+import { hasSupabaseConfig } from '../../services/supabaseConfig';
 import './Assistant.css';
 
 const PRESET_QUESTIONS = [
@@ -15,9 +16,8 @@ const PRESET_QUESTIONS = [
     { icon: '💼', text: '哪些专业就业前景好？' },
 ];
 
-const EDGE_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-
 export default function Assistant() {
+    const configReady = hasSupabaseConfig();
     const [messages, setMessages] = useState([
         {
             role: 'assistant',
@@ -27,7 +27,6 @@ export default function Assistant() {
     const [input, setInput] = useState('');
     const [typing, setTyping] = useState(false);
     const chatEndRef = useRef(null);
-    const textareaRef = useRef(null);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,26 +39,20 @@ export default function Assistant() {
             content: m.content,
         }));
 
-        const response = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({ messages: history }),
+        const data = await callEdgeFunction('ai-chat', {
+            body: { messages: history },
+            fallbackMessage: 'AI 服务调用失败',
+            serviceName: 'AI 服务',
         });
-
-        if (!response.ok) {
-            throw new Error(`AI 服务错误: ${response.status}`);
+        if (!data?.reply) {
+            throw new Error('AI 服务返回格式无效，请稍后重试');
         }
-
-        const data = await response.json();
         return data.reply;
     };
 
     const handleSend = async (text) => {
         const question = text || input.trim();
-        if (!question || typing) return;
+        if (!question || typing || !configReady) return;
 
         const userMsg = { role: 'user', content: question };
         const newMessages = [...messages, userMsg];
@@ -76,7 +69,7 @@ export default function Assistant() {
                 ...prev,
                 {
                     role: 'assistant',
-                    content: '抱歉，AI 服务暂时不可用，请稍后重试。\n\n您也可以直接使用平台的其他功能：\n- 🎯 **智能推荐** — 根据分数自动匹配院校\n- 🏫 **院校查询** — 搜索和对比院校\n- 📊 **数据分析** — 查看可视化数据',
+                    content: `${err.message || '抱歉，AI 服务暂时不可用，请稍后重试。'}\n\n您也可以直接使用平台的其他功能：\n- 🎯 **智能推荐** — 根据分数自动匹配院校\n- 🏫 **院校查询** — 搜索和对比院校\n- 📊 **数据分析** — 查看可视化数据`,
                 },
             ]);
         } finally {
@@ -125,6 +118,12 @@ export default function Assistant() {
                             <span>清除对话</span>
                         </button>
                     </div>
+                    {!configReady && (
+                        <ConfigErrorNotice
+                            serviceName="AI 服务"
+                            detail="当前环境缺少 Supabase 配置，AI 对话已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                        />
+                    )}
                     <div className="assistant-sidebar__badge">
                         <span className="assistant-badge">🤖 智谱 GLM-4 驱动</span>
                     </div>
@@ -180,19 +179,18 @@ export default function Assistant() {
                     <div className="assistant-chat__input-area">
                         <div className="assistant-chat__input-wrapper">
                             <textarea
-                                ref={textareaRef}
                                 className="assistant-chat__input"
                                 placeholder="输入您的问题...例如：我考了650分该怎么填志愿？"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={handleKeyDown}
                                 rows={1}
-                                disabled={typing}
+                                disabled={typing || !configReady}
                             />
                             <Button
                                 size="sm"
                                 onClick={() => handleSend()}
-                                disabled={!input.trim() || typing}
+                                disabled={!input.trim() || typing || !configReady}
                                 className="assistant-chat__send-btn"
                             >
                                 {typing ? '...' : '发送'}

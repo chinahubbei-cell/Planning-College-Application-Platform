@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Card, { CardBody } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
@@ -176,6 +176,21 @@ const STEPS = [
 ];
 
 export default function Landing() {
+    const navigate = useNavigate();
+    const [quickScore, setQuickScore] = useState('');
+
+    const handleQuickRecommend = (e) => {
+        e.preventDefault();
+
+        const trimmedScore = quickScore.trim();
+        if (!trimmedScore) {
+            navigate('/recommend');
+            return;
+        }
+
+        navigate(`/recommend?score=${encodeURIComponent(trimmedScore)}`);
+    };
+
     return (
         <div className="landing">
             {/* ===== Hero Section ===== */}
@@ -211,18 +226,18 @@ export default function Landing() {
                     <div className="hero__quick animate-fade-in-up delay-3">
                         <div className="hero__quick-card glass">
                             <span className="hero__quick-label">快速体验：输入您的分数</span>
-                            <div className="hero__quick-input-group">
+                            <form className="hero__quick-input-group" onSubmit={handleQuickRecommend}>
                                 <input
                                     type="number"
                                     className="hero__quick-input"
                                     placeholder="高考分数"
                                     min="0"
                                     max="750"
+                                    value={quickScore}
+                                    onChange={(e) => setQuickScore(e.target.value)}
                                 />
-                                <Link to="/recommend">
-                                    <Button>查看推荐</Button>
-                                </Link>
-                            </div>
+                                <Button type="submit">查看推荐</Button>
+                            </form>
                         </div>
                     </div>
                 </div>

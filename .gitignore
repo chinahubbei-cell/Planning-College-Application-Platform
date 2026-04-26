@@ -13,6 +13,9 @@ dist
 .env.*
 dist-ssr
 *.local
+vite-dev.log
+supabase/.temp/
+temp-*.js
 
 # Editor directories and files
 .vscode/*

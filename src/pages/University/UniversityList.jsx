@@ -5,12 +5,14 @@ import Card, { CardBody } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
 import { PROVINCES, UNIVERSITY_LEVELS, UNIVERSITY_TYPES } from '../../utils/constants';
 import './University.css';
 
 export default function UniversityList() {
     const [universities, setUniversities] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -43,8 +45,13 @@ export default function UniversityList() {
             setUniversities(result.data || []);
             setTotalCount(result.count || 0);
             setTotalPages(result.totalPages || 1);
+            setError('');
         } catch (err) {
             console.error('Failed to fetch universities:', err);
+            setUniversities([]);
+            setTotalCount(0);
+            setTotalPages(1);
+            setError(err.message || '加载院校数据失败');
         } finally {
             setLoading(false);
         }
@@ -178,9 +185,34 @@ export default function UniversityList() {
 
                 {/* Results */}
                 <div className="uni-results">
+                    {error && (
+                        <div style={{ marginBottom: '1rem' }}>
+                            {error.includes('配置缺失') ? (
+                                <ConfigErrorNotice
+                                    serviceName="院校数据服务"
+                                    detail="当前环境缺少 Supabase 配置，院校列表请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                                />
+                            ) : (
+                                <div
+                                    className="uni-empty animate-fade-in"
+                                    style={{
+                                        padding: '2rem',
+                                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                                        background: 'rgba(127, 29, 29, 0.18)',
+                                    }}
+                                >
+                                    <span className="uni-empty__icon">⚠️</span>
+                                    <h3>院校数据暂时不可用</h3>
+                                    <p>{error}</p>
+                                    <Button variant="outline" onClick={fetchData}>重新加载</Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {loading ? (
                         <Loading text="加载院校数据..." />
-                    ) : universities.length === 0 ? (
+                    ) : !error && universities.length === 0 ? (
                         <div className="uni-empty animate-fade-in">
                             <span className="uni-empty__icon">🏫</span>
                             <h3>未找到匹配的院校</h3>

@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../services/supabase';
 import { RefreshCw, Database, Server, Clock, AlertCircle, CheckCircle, X, TimerOff, Info } from 'lucide-react';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
+import useUIStore from '../../stores/useUIStore';
+import { createAppError, normalizeAppError } from '../../services/appError';
+import { hasSupabaseConfig } from '../../services/supabaseConfig';
 import './DataSync.css';
 
 const POLL_INTERVAL = 4000; // 4 seconds
@@ -13,29 +17,165 @@ const TASK_TYPE_LABELS = {
     SCORES: '分数线',
 };
 
+function normalizeSyncTriggerError(error, type) {
+    const normalizedError = normalizeAppError(error, {
+        fallbackMessage: '触发同步失败',
+        networkMessage: '数据同步服务暂时无法连接，请检查网络后重试',
+        unauthorizedMessage: '登录状态已失效，请重新登录',
+        forbiddenMessage: '当前账号没有执行同步的权限',
+        configMessage: '数据同步服务配置缺失，请联系管理员检查环境变量',
+    });
+
+    const rawMessage = String(error?.message || normalizedError.message || '').toLowerCase();
+    if (
+        type === 'UNIVERSITY_DETAILS'
+        && normalizedError.code === 'BAD_REQUEST'
+        && rawMessage.includes('invalid task_type')
+    ) {
+        return new Error('当前线上 sync-data 函数仍是旧版本，暂不支持“补全院校详情”。请先重新部署 Supabase Edge Function `sync-data`。');
+    }
+
+    return normalizedError;
+}
+
+async function getValidSyncAccessToken() {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) throw sessionError;
+
+    const session = sessionData?.session;
+    const now = Date.now();
+    const expiryMs = session?.expires_at ? session.expires_at * 1000 : 0;
+
+    if (session?.access_token && expiryMs - now > 60 * 1000) {
+        return session.access_token;
+    }
+
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) throw refreshError;
+
+    const refreshedToken = refreshData?.session?.access_token;
+    if (!refreshedToken) {
+        throw new Error('请重新登录后再执行同步');
+    }
+
+    return refreshedToken;
+}
+
+async function forceRefreshSyncAccessToken() {
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) throw refreshError;
+
+    const refreshedToken = refreshData?.session?.access_token;
+    if (!refreshedToken) {
+        throw new Error('请重新登录后再执行同步');
+    }
+
+    return refreshedToken;
+}
+
+async function invokeSyncTask(type) {
+    await getValidSyncAccessToken();
+
+    try {
+        const { error } = await supabase.functions.invoke('sync-data', {
+            body: { task_type: type, executed_by: 'admin' },
+        });
+        if (error) throw error;
+    } catch (error) {
+        const normalizedError = await normalizeSyncInvokeError(error);
+
+        if (normalizedError.code !== 'UNAUTHORIZED') {
+            throw normalizedError;
+        }
+
+        await forceRefreshSyncAccessToken();
+        const { error: retryError } = await supabase.functions.invoke('sync-data', {
+            body: { task_type: type, executed_by: 'admin' },
+        });
+        if (retryError) {
+            throw await normalizeSyncInvokeError(retryError);
+        }
+    }
+}
+
+async function normalizeSyncInvokeError(error) {
+    const response = error?.context;
+    if (response instanceof Response) {
+        let payload = null;
+        try {
+            payload = await response.clone().json();
+        } catch {
+            try {
+                const text = await response.clone().text();
+                if (text) {
+                    payload = { error: { message: text } };
+                }
+            } catch {
+                payload = null;
+            }
+        }
+
+        if (payload?.error?.message) {
+            return createAppError(
+                payload.error.code || (response.status === 401 ? 'UNAUTHORIZED' : 'EDGE_FUNCTION_ERROR'),
+                payload.error.message,
+                { status: response.status, data: payload },
+            );
+        }
+
+        if (payload?.message) {
+            return createAppError(
+                response.status === 401 ? 'UNAUTHORIZED' : 'EDGE_FUNCTION_ERROR',
+                payload.message,
+                { status: response.status, data: payload },
+            );
+        }
+    }
+
+    return normalizeAppError(error, {
+        fallbackMessage: '触发同步失败',
+        networkMessage: '数据同步服务暂时无法连接，请检查网络后重试',
+        unauthorizedMessage: '登录状态已失效，请重新登录',
+        forbiddenMessage: '当前账号没有执行同步的权限',
+        configMessage: '数据同步服务配置缺失，请联系管理员检查环境变量',
+    });
+}
+
 export default function DataSyncAdmin() {
+    const configReady = hasSupabaseConfig();
+    const { addToast } = useUIStore();
     const [logs, setLogs] = useState([]);
     const [syncingTypes, setSyncingTypes] = useState(new Set()); // Track each type independently
     const [confirmModal, setConfirmModal] = useState({ open: false, type: null, title: '' });
     const [refreshing, setRefreshing] = useState(false);
     const [activeDetail, setActiveDetail] = useState(null); // { message, rect }
+    const [error, setError] = useState('');
     const pollTimerRef = useRef(null);
     const timeoutTimersRef = useRef({});
 
     // Fetch logs
     const fetchLogs = useCallback(async () => {
-        const { data, error } = await supabase
-            .from('data_sync_logs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(20);
-        if (!error && data) {
-            setLogs(data);
-            // Check if any RUNNING logs completed → stop polling for those types
-            const stillRunning = data.filter(l => l.status === 'RUNNING');
-            const runningTypes = new Set(stillRunning.map(l => l.task_type));
+        if (!configReady) {
+            setError('数据同步服务配置缺失，请联系管理员检查环境变量');
+            return;
+        }
 
-            setSyncingTypes(prev => {
+        try {
+            const { data, error: fetchError } = await supabase
+                .from('data_sync_logs')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (fetchError) throw fetchError;
+
+            setError('');
+            setLogs(data || []);
+            // Check if any RUNNING logs completed → stop polling for those types
+            const stillRunning = (data || []).filter((l) => l.status === 'RUNNING');
+            const runningTypes = new Set(stillRunning.map((l) => l.task_type));
+
+            setSyncingTypes((prev) => {
                 const next = new Set();
                 for (const t of prev) {
                     if (runningTypes.has(t)) next.add(t);
@@ -47,14 +187,24 @@ export default function DataSyncAdmin() {
                 }
                 return next;
             });
+        } catch (err) {
+            const normalizedError = normalizeAppError(err, {
+                fallbackMessage: '获取同步日志失败',
+                networkMessage: '数据同步服务暂时无法连接，请检查网络后重试',
+                unauthorizedMessage: '登录状态已失效，请重新登录',
+                forbiddenMessage: '当前账号没有查看同步日志的权限',
+                configMessage: '数据同步服务配置缺失，请联系管理员检查环境变量',
+            });
+            setError(normalizedError.message);
         }
-    }, []);
+    }, [configReady]);
 
     useEffect(() => {
         fetchLogs();
+        const timeoutTimers = timeoutTimersRef.current;
         return () => {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-            Object.values(timeoutTimersRef.current).forEach(clearTimeout);
+            Object.values(timeoutTimers).forEach(clearTimeout);
         };
     }, [fetchLogs]);
 
@@ -75,6 +225,13 @@ export default function DataSyncAdmin() {
 
     // Fire-and-forget async sync
     const confirmAndSync = async () => {
+        if (!configReady) {
+            const message = '数据同步服务配置缺失，请联系管理员检查环境变量';
+            setError(message);
+            addToast({ type: 'error', message });
+            return;
+        }
+
         const type = confirmModal.type;
         setConfirmModal({ open: false, type: null, title: '' });
 
@@ -82,21 +239,9 @@ export default function DataSyncAdmin() {
         setSyncingTypes(prev => new Set([...prev, type]));
 
         try {
-            // Call Edge Function (fire-and-forget)
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://ysrcdhxjbllznvekapyy.supabase.co';
-            const response = await fetch(`${supabaseUrl}/functions/v1/sync-data`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || ''}`,
-                },
-                body: JSON.stringify({ task_type: type, executed_by: 'admin' }),
-            });
-
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || `HTTP ${response.status}`);
-            }
+            await invokeSyncTask(type);
+            setError('');
+            addToast({ type: 'success', message: `${confirmModal.title} 已开始执行` });
 
             // Start polling for status updates
             startPolling();
@@ -115,12 +260,15 @@ export default function DataSyncAdmin() {
             }, SYNC_TIMEOUT);
 
         } catch (err) {
-            console.error('Sync trigger failed:', err);
+            const normalizedError = normalizeSyncTriggerError(err, type);
+            console.error('Sync trigger failed:', normalizedError);
             setSyncingTypes(prev => {
                 const next = new Set(prev);
                 next.delete(type);
                 return next;
             });
+            setError(normalizedError.message);
+            addToast({ type: 'error', message: normalizedError.message });
             // Still refresh logs in case the Edge Function created a RUNNING entry
             fetchLogs();
         }
@@ -206,6 +354,30 @@ export default function DataSyncAdmin() {
                 </p>
             </div>
 
+            {!configReady && (
+                <ConfigErrorNotice
+                    serviceName="数据同步服务"
+                    detail="当前环境缺少 Supabase 配置，无法读取同步日志或触发同步任务。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                    className="animate-fade-in"
+                />
+            )}
+
+            {error && (
+                <div
+                    className="datasync-error-banner"
+                    style={{
+                        marginBottom: '1rem',
+                        padding: '0.875rem 1rem',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        background: 'rgba(127, 29, 29, 0.18)',
+                        color: 'var(--color-text-primary)',
+                    }}
+                >
+                    ⚠️ {error}
+                </div>
+            )}
+
             {/* Sync Cards */}
             <div className="datasync-cards">
                 {syncItems.map((item, idx) => {
@@ -220,7 +392,7 @@ export default function DataSyncAdmin() {
                             <button
                                 className="datasync-btn"
                                 onClick={() => requestSync(item.type, item.title)}
-                                disabled={isThisSyncing}
+                                disabled={isThisSyncing || !configReady}
                             >
                                 {isThisSyncing ? (
                                     <>
@@ -246,7 +418,7 @@ export default function DataSyncAdmin() {
                             await fetchLogs();
                             setTimeout(() => setRefreshing(false), 600);
                         }}
-                        disabled={refreshing}
+                        disabled={refreshing || !configReady}
                     >
                         <RefreshCw className={refreshing ? 'datasync-spin' : ''} />
                         {refreshing ? '刷新中...' : '刷新'}

@@ -1,12 +1,18 @@
 /**
  * Supabase 客户端初始化
- * TODO: 替换为实际的 Supabase 项目凭据
  */
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './supabaseConfig';
+import { timedFetch } from './network';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+    SUPABASE_URL || 'https://placeholder.supabase.co',
+    SUPABASE_ANON_KEY || 'placeholder-key',
+    {
+        global: {
+            fetch: timedFetch,
+        },
+    },
+);
 
 export default supabase;

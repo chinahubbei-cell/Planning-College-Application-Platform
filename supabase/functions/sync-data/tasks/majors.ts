@@ -18,14 +18,33 @@ export async function syncMajors(supabase: any) {
 
     // Simulate updating some common majors
     const basicMajors = [
-        { code: '080901', name: '计算机科学与技术', category: '工学', sub_category: '计算机类' },
-        { code: '080902', name: '软件工程', category: '工学', sub_category: '计算机类' },
-        { code: '020301K', name: '金融学', category: '经济学', sub_category: '金融学类' },
+        { code: '080901', name: '计算机科学与技术', category: '工学', subcategory: '计算机类' },
+        { code: '080902', name: '软件工程', category: '工学', subcategory: '计算机类' },
+        { code: '020301K', name: '金融学', category: '经济学', subcategory: '金融学类' },
     ];
+
+    const { data: existingMajors, error: fetchError } = await supabase
+        .from('majors')
+        .select('code');
+
+    if (fetchError) {
+        console.error('Failed to load existing majors:', fetchError);
+        throw fetchError;
+    }
+
+    const existingCodes = new Set(existingMajors?.map((major: any) => major.code).filter(Boolean) || []);
+    const majorsToInsert = basicMajors.filter((major) => major.code && !existingCodes.has(major.code));
+
+    if (majorsToInsert.length === 0) {
+        return {
+            recordsAdded: 0,
+            message: 'No new majors found in prototype sync.'
+        };
+    }
 
     const { error: insertError } = await supabase
         .from('majors')
-        .upsert(basicMajors, { onConflict: 'code', ignoreDuplicates: true });
+        .insert(majorsToInsert);
 
     if (insertError) {
         console.error('Failed to sync basic majors:', insertError);
@@ -33,7 +52,7 @@ export async function syncMajors(supabase: any) {
     }
 
     return {
-        recordsAdded: basicMajors.length,
+        recordsAdded: majorsToInsert.length,
         message: 'Major sync partially completed (prototype).'
     };
 }

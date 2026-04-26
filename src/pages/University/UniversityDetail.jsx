@@ -18,6 +18,7 @@ import Card, { CardBody, CardHeader } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
 import './University.css';
 import '../Recommend/Recommend.css'; // Reuse modal styles
 
@@ -30,6 +31,7 @@ export default function UniversityDetail() {
     const [majors, setMajors] = useState([]);
     const [scores, setScores] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState('info');
 
     // Plan modal states
@@ -88,8 +90,10 @@ export default function UniversityDetail() {
                 setUniversity(uni);
                 setMajors(majorsData || []);
                 setScores(scoresData || []);
+                setError('');
             } catch (err) {
                 console.error('Failed to fetch university:', err);
+                setError(err.message || '加载院校信息失败');
             } finally {
                 setLoading(false);
             }
@@ -98,6 +102,25 @@ export default function UniversityDetail() {
     }, [id]);
 
     if (loading) return <Loading text="加载院校信息..." />;
+    if (error) {
+        return (
+            <div className="uni-empty" style={{ padding: '4rem' }}>
+                {error.includes('配置缺失') ? (
+                    <ConfigErrorNotice
+                        serviceName="院校数据服务"
+                        detail="当前环境缺少 Supabase 配置，院校详情请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                    />
+                ) : (
+                    <>
+                        <span className="uni-empty__icon">⚠️</span>
+                        <h3>院校信息暂时不可用</h3>
+                        <p>{error}</p>
+                        <Link to="/universities"><Button variant="outline">返回院校列表</Button></Link>
+                    </>
+                )}
+            </div>
+        );
+    }
     if (!university) {
         return (
             <div className="uni-empty" style={{ padding: '4rem' }}>

@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signUp } from '../../services/authService';
 import Button from '../../components/common/Button';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
+import { hasSupabaseConfig } from '../../services/supabaseConfig';
 import './Auth.css';
 
 export default function Register() {
+    const configReady = hasSupabaseConfig();
     const navigate = useNavigate();
     const [form, setForm] = useState({
         name: '',
@@ -21,6 +24,7 @@ export default function Register() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!configReady) return;
         setError('');
 
         // Validation
@@ -128,6 +132,14 @@ export default function Register() {
                         </div>
                     )}
 
+                    {!configReady && (
+                        <ConfigErrorNotice
+                            serviceName="认证服务"
+                            detail="当前环境缺少 Supabase 配置，注册请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                            className="animate-fade-in"
+                        />
+                    )}
+
                     <form className="auth-form" onSubmit={handleSubmit}>
                         <div className="auth-field">
                             <label htmlFor="reg-name" className="auth-label">姓名</label>
@@ -139,6 +151,7 @@ export default function Register() {
                                 value={form.name}
                                 onChange={updateField('name')}
                                 required
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -153,6 +166,7 @@ export default function Register() {
                                 onChange={updateField('email')}
                                 required
                                 autoComplete="email"
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -168,6 +182,7 @@ export default function Register() {
                                 required
                                 minLength={6}
                                 autoComplete="new-password"
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -183,6 +198,7 @@ export default function Register() {
                                 required
                                 minLength={6}
                                 autoComplete="new-password"
+                                disabled={!configReady || loading}
                             />
                         </div>
 
@@ -191,6 +207,7 @@ export default function Register() {
                             fullWidth
                             size="lg"
                             loading={loading}
+                            disabled={!configReady}
                         >
                             创建账户
                         </Button>

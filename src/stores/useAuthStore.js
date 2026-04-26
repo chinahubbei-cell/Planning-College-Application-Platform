@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-const useAuthStore = create((set, get) => ({
+const useAuthStore = create((set) => ({
     user: null,
     session: null,
     loading: true,
@@ -17,12 +17,6 @@ const useAuthStore = create((set, get) => ({
         loading: false,
         error: null,
     }),
-
-    // Computed: check if current user is admin
-    get isAdmin() {
-        const state = get();
-        return state.user?.profile?.role === 'admin';
-    },
 }));
 
 export default useAuthStore;

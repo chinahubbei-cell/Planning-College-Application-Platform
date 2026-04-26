@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getRecommendations } from '../../services/recommendService';
 import Card, { CardBody, CardHeader } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
@@ -18,6 +18,7 @@ const RISK_CONFIG = {
 };
 
 export default function Recommend() {
+    const [searchParams] = useSearchParams();
     const [formData, setFormData] = useState({
         score: '',
         province: '湖北',
@@ -37,6 +38,25 @@ export default function Recommend() {
     const [plans, setPlans] = useState([]);
     const [loadingPlans, setLoadingPlans] = useState(false);
     const [addingToPlan, setAddingToPlan] = useState(false);
+
+    useEffect(() => {
+        const nextScore = searchParams.get('score');
+        const nextProvince = searchParams.get('province');
+        const nextSubjectType = searchParams.get('subjectType');
+        const nextYear = searchParams.get('year');
+
+        if (!nextScore && !nextProvince && !nextSubjectType && !nextYear) {
+            return;
+        }
+
+        setFormData((prev) => ({
+            ...prev,
+            score: nextScore ?? prev.score,
+            province: nextProvince ?? prev.province,
+            subjectType: nextSubjectType ?? prev.subjectType,
+            year: nextYear ? Number(nextYear) || prev.year : prev.year,
+        }));
+    }, [searchParams]);
 
     const handleOpenPlanModal = async (e, item, riskKey) => {
         e.preventDefault();

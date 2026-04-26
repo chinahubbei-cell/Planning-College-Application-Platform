@@ -1,14 +1,21 @@
 import { useEffect } from 'react';
 import useAuthStore from '../stores/useAuthStore';
 import { onAuthStateChange, getUserProfile, signOut as authSignOut } from '../services/authService';
+import { hasSupabaseConfig } from '../services/supabaseConfig';
 
 /**
  * useAuth hook — 初始化并监听认证状态
  */
 export default function useAuth() {
-    const { user, session, loading, setUser, setSession, setLoading, logout } = useAuthStore();
+    const { user, session, loading, setUser, setSession, logout } = useAuthStore();
 
     useEffect(() => {
+        if (!hasSupabaseConfig()) {
+            setSession(null);
+            setUser(null);
+            return undefined;
+        }
+
         // 监听认证状态变化
         const { data: { subscription } } = onAuthStateChange((event, session) => {
             setSession(session);
@@ -29,7 +36,7 @@ export default function useAuth() {
         });
 
         return () => subscription?.unsubscribe();
-    }, []);
+    }, [setSession, setUser]);
 
     const handleSignOut = async () => {
         try {

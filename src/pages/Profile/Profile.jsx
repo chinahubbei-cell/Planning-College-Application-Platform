@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../../stores/useAuthStore';
+import useUIStore from '../../stores/useUIStore';
 import { getUserProfile, updateUserProfile } from '../../services/authService';
 import { getFavorites, removeFavorite } from '../../services/favoriteService';
 import Card, { CardBody, CardHeader } from '../../components/common/Card';
@@ -11,6 +12,7 @@ import './Profile.css';
 
 export default function Profile() {
     const { user } = useAuthStore();
+    const { addToast } = useUIStore();
     const [profile, setProfile] = useState(null);
     const [favorites, setFavorites] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -19,12 +21,7 @@ export default function Profile() {
     const [editForm, setEditForm] = useState({});
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        if (user) fetchData();
-        else setLoading(false);
-    }, [user]);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [profileData, favData] = await Promise.all([
@@ -46,16 +43,23 @@ export default function Profile() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) fetchData();
+        else setLoading(false);
+    }, [fetchData, user]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            await updateUserProfile(user.id, editForm);
-            setProfile({ ...profile, ...editForm });
+            const nextProfile = await updateUserProfile(user.id, editForm);
+            setProfile(nextProfile);
             setEditing(false);
+            addToast({ type: 'success', message: '个人资料已保存' });
         } catch (err) {
             console.error('Failed to save:', err);
+            addToast({ type: 'error', message: err.message || '保存个人资料失败' });
         } finally {
             setSaving(false);
         }
@@ -65,8 +69,10 @@ export default function Profile() {
         try {
             await removeFavorite(favId);
             setFavorites(favorites.filter((f) => f.id !== favId));
+            addToast({ type: 'success', message: '已取消收藏' });
         } catch (err) {
             console.error(err);
+            addToast({ type: 'error', message: err.message || '取消收藏失败' });
         }
     };
 

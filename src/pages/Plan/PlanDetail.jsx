@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPlanById, removePlanItem } from '../../services/planService';
 import { getMyAccess } from '../../services/commerceService';
 import useAuthStore from '../../stores/useAuthStore';
-import Card, { CardBody, CardHeader } from '../../components/common/Card';
+import Card, { CardBody } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
@@ -18,14 +18,7 @@ export default function PlanDetail() {
     const [access, setAccess] = useState({ is_paid: false, expires_at: null });
     const [exporting, setExporting] = useState(false);
 
-    useEffect(() => {
-        if (user) {
-            fetchPlan();
-            fetchAccess();
-        } else setLoading(false);
-    }, [user, id]);
-
-    const fetchPlan = async () => {
+    const fetchPlan = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getPlanById(id);
@@ -35,16 +28,23 @@ export default function PlanDetail() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
-    const fetchAccess = async () => {
+    const fetchAccess = useCallback(async () => {
         try {
             const data = await getMyAccess();
             setAccess(data);
         } catch (err) {
             console.error('Failed to fetch access:', err);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            fetchPlan();
+            fetchAccess();
+        } else setLoading(false);
+    }, [fetchAccess, fetchPlan, user]);
 
     const handleExportReport = async () => {
         if (!access?.is_paid) {
