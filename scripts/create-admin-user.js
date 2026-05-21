@@ -30,8 +30,14 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 async function createAdminUser() {
-  const adminEmail = 'admin@gaokao.com';
-  const adminPassword = 'Admin@2026'; // 请在生产环境中修改此密码
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@gaokao.com';
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    console.error('❌ 错误: 请设置 ADMIN_PASSWORD 环境变量');
+    console.error('   export ADMIN_PASSWORD=<your-secure-password>');
+    process.exit(1);
+  }
 
   console.log('🔧 开始创建管理员账户...');
 
@@ -100,8 +106,8 @@ async function createAdminUser() {
     console.log('\n🎉 管理员账户创建完成!');
     console.log('\n登录信息:');
     console.log('📧 邮箱:', adminEmail);
-    console.log('🔑 密码:', adminPassword);
-    console.log('\n⚠️  请在生产环境中立即修改此密码!');
+    console.log('🔑 密码: (已通过环境变量设置，请妥善保管，勿在日志中打印)');
+    console.log('\n⚠️  请在生产环境中使用强密码!');
 
   } catch (err) {
     console.error('❌ 发生错误:', err.message);

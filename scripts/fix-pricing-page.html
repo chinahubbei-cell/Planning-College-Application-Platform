@@ -215,8 +215,8 @@
                 <input
                     type="text"
                     id="supabaseUrl"
-                    value="https://ysrcdhxjbllznvekapyy.supabase.co"
-                    readonly
+                    placeholder="从 .env 获取 VITE_SUPABASE_URL"
+                    required
                 >
             </div>
 
@@ -339,16 +339,22 @@
 
                 const testUser = users.find(u => u.email === 'test@gaokao.com');
                 if (testUser) {
-                    const { error: pwdError } = await supabase.auth.admin.updateUserById(testUser.id, {
-                        password: 'Test@2026',
-                        email_confirm: true
-                    });
-
-                    if (pwdError) {
-                        steps[steps.length - 1].status = 'error';
-                        steps[steps.length - 1].error = pwdError.message;
+                    const testPassword = document.getElementById('testPassword')?.value?.trim();
+                    if (!testPassword) {
+                        steps[steps.length - 1].status = 'skipped';
+                        steps[steps.length - 1].error = '未提供新密码';
                     } else {
-                        steps[steps.length - 1].status = 'success';
+                        const { error: pwdError } = await supabase.auth.admin.updateUserById(testUser.id, {
+                            password: testPassword,
+                            email_confirm: true
+                        });
+
+                        if (pwdError) {
+                            steps[steps.length - 1].status = 'error';
+                            steps[steps.length - 1].error = pwdError.message;
+                        } else {
+                            steps[steps.length - 1].status = 'success';
+                        }
                     }
                 } else {
                     steps[steps.length - 1].status = 'skipped';
@@ -418,7 +424,7 @@
                         <p style="font-weight: 600; margin-bottom: 12px;">🧪 验证步骤：</p>
                         <ol style="margin-left: 20px; line-height: 2;">
                             <li>访问 <a href="http://localhost:5173/login" target="_blank" style="color: #065f46;">http://localhost:5173/login</a></li>
-                            <li>使用 <code>test@gaokao.com</code> / <code>Test@2026</code> 登录</li>
+                            <li>使用 <code>test@gaokao.com</code> 和你设置的密码登录</li>
                             <li>访问 <a href="http://localhost:5173/pricing" target="_blank" style="color: #065f46;">http://localhost:5173/pricing</a></li>
                             <li>应该显示"✅ 已订阅"状态</li>
                         </ol>

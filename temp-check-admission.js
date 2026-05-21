@@ -1,9 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import path from 'path';
 
-const supabase = createClient(
-  'https://ysrcdhxjbllznvekapyy.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlzcmNkaHhqYmxsem52ZWthcHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MDExNDYsImV4cCI6MjA4Nzk3NzE0Nn0.Lw1bGYzLMHG13Z8Qu-sbgNPThVJ8O9hE1rClLSAlnqk'
-);
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing Supabase configuration in .env');
+  process.exit(1);
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkAdmissionData() {
   console.log('=== 查询当前分数线数据 ===');

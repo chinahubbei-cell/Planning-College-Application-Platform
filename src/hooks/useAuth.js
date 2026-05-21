@@ -44,6 +44,7 @@ export default function useAuth() {
             logout();
         } catch (error) {
             console.error('Sign out error:', error);
+            logout();
         }
     };
 

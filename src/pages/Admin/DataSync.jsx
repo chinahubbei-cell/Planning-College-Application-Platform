@@ -155,7 +155,7 @@ export default function DataSyncAdmin() {
 
     // Fetch logs
     const fetchLogs = useCallback(async () => {
-        if (!configReady) {
+        if (!hasSupabaseConfig()) {
             setError('数据同步服务配置缺失，请联系管理员检查环境变量');
             return;
         }
@@ -171,22 +171,7 @@ export default function DataSyncAdmin() {
 
             setError('');
             setLogs(data || []);
-            // Check if any RUNNING logs completed → stop polling for those types
-            const stillRunning = (data || []).filter((l) => l.status === 'RUNNING');
-            const runningTypes = new Set(stillRunning.map((l) => l.task_type));
-
-            setSyncingTypes((prev) => {
-                const next = new Set();
-                for (const t of prev) {
-                    if (runningTypes.has(t)) next.add(t);
-                }
-                // If nothing is running anymore, stop polling
-                if (next.size === 0 && pollTimerRef.current) {
-                    clearInterval(pollTimerRef.current);
-                    pollTimerRef.current = null;
-                }
-                return next;
-            });
+            return data;
         } catch (err) {
             const normalizedError = normalizeAppError(err, {
                 fallbackMessage: '获取同步日志失败',
@@ -196,8 +181,9 @@ export default function DataSyncAdmin() {
                 configMessage: '数据同步服务配置缺失，请联系管理员检查环境变量',
             });
             setError(normalizedError.message);
+            return null;
         }
-    }, [configReady]);
+    }, []);
 
     useEffect(() => {
         fetchLogs();
@@ -209,10 +195,28 @@ export default function DataSyncAdmin() {
     }, [fetchLogs]);
 
     // Start polling when a sync is triggered
-    const startPolling = useCallback(() => {
-        if (pollTimerRef.current) return; // Already polling
-        pollTimerRef.current = setInterval(fetchLogs, POLL_INTERVAL);
+    const pollAndCheck = useCallback(async () => {
+        const data = await fetchLogs();
+        if (!data) return;
+        const stillRunning = data.filter((l) => l.status === 'RUNNING');
+        const runningTypes = new Set(stillRunning.map((l) => l.task_type));
+        setSyncingTypes((prev) => {
+            const next = new Set();
+            for (const t of prev) {
+                if (runningTypes.has(t)) next.add(t);
+            }
+            if (next.size === 0 && pollTimerRef.current) {
+                clearInterval(pollTimerRef.current);
+                pollTimerRef.current = null;
+            }
+            return next;
+        });
     }, [fetchLogs]);
+
+    const startPolling = useCallback(() => {
+        if (pollTimerRef.current) return;
+        pollTimerRef.current = setInterval(pollAndCheck, POLL_INTERVAL);
+    }, [pollAndCheck]);
 
     // Show confirm modal
     const requestSync = (type, title) => {

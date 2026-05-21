@@ -14,10 +14,15 @@ const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, anonKey);
 
 async function checkAndFixTestUser() {
-  const testEmail = 'test@gaokao.com';
-  const testPassword = 'Test@2026';
+  const testEmail = process.env.TEST_USER_EMAIL || 'test@gaokao.com';
+  const testPassword = process.env.TEST_USER_PASSWORD;
 
-  console.log('🔍 检查 test@gaokao.com 数据记录...\n');
+  if (!testPassword) {
+    console.error('❌ 请通过环境变量 TEST_USER_PASSWORD 设置测试用户密码');
+    return;
+  }
+
+  console.log(`🔍 检查 ${testEmail} 数据记录...\n`);
 
   // 1. 登录
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({

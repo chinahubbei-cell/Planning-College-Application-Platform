@@ -27,7 +27,7 @@ console.log('步骤：');
 console.log('1. 访问 https://supabase.com/dashboard');
 console.log('2. 选择项目 → Authentication → Users');
 console.log('3. 找到用户 → 点击邮箱 → Reset Password');
-console.log('4. 设置新密码（如 Test@2026）');
+console.log('4. 设置新密码');
 console.log('5. 保存后登录 http://localhost:5173/login');
 console.log('');
 console.log('='.repeat(60));
@@ -39,7 +39,6 @@ if (email && newPassword) {
   console.log('');
   console.log('请在 Supabase Dashboard 中按上述步骤手动重置。');
 } else {
-  console.log('💡 推荐密码：');
-  console.log('   - admin@gaokao.com → Admin@2026');
-  console.log('   - test@gaokao.com → Test@2026');
+  console.log('💡 请使用具体密码运行: node scripts/reset-password.js <email> <new-password>');
+  console.log('   例如: node scripts/reset-password.js test@gaokao.com YourSecurePassword');
 }

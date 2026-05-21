@@ -14,14 +14,20 @@ const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkUserAccess() {
-  const testEmail = 'test@gaokao.com';
+  const testEmail = process.env.TEST_USER_EMAIL || 'test@gaokao.com';
+  const testPassword = process.env.TEST_USER_PASSWORD;
+
+  if (!testPassword) {
+    console.error('❌ 请通过环境变量 TEST_USER_PASSWORD 设置测试用户密码');
+    return;
+  }
 
   console.log('🔍 检查用户付费状态...\n');
 
   // 1. 登录获取用户
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: testEmail,
-    password: 'Test@2026'
+    password: testPassword
   });
 
   if (signInError) {

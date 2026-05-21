@@ -45,7 +45,14 @@ export async function addFavorite({ universityId, majorId, type }) {
  * 取消收藏
  */
 export async function removeFavorite(favoriteId) {
-    const { error } = await supabase.from('favorites').delete().eq('id', favoriteId);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('请先登录');
+
+    const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('id', favoriteId)
+        .eq('user_id', user.id);
     if (error) throw error;
 }
 

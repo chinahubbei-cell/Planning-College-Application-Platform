@@ -46,11 +46,11 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 const email = process.argv[2];
-const newPassword = process.argv[3] || 'Test@2026'; // 默认密码
+const newPassword = process.argv[3];
 
-if (!email) {
-  console.error('❌ 用法: node scripts/reset-password.js <email> [new-password]');
-  console.error('   例如: node scripts/reset-password.js test@gaokao.com MyPassword123');
+if (!email || !newPassword) {
+  console.error('❌ 用法: node scripts/reset-password.js <email> <new-password>');
+  console.error('   例如: node scripts/reset-password.js test@gaokao.com MySecurePassword123');
   process.exit(1);
 }
 
@@ -116,7 +116,7 @@ async function resetPassword() {
   console.log('📋 重置完成');
   console.log('='.repeat(50));
   console.log(`📧 邮箱: ${email}`);
-  console.log(`🔑 密码: ${newPassword}`);
+  console.log('🔑 密码: (已设置，请妥善保管)');
   console.log(`🌐 登录地址: http://localhost:5173/login`);
   console.log('='.repeat(50));
 

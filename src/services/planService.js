@@ -1,4 +1,11 @@
 import supabase from './supabase';
+import { createAppError } from './appError';
+
+async function getCurrentUserId() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw createAppError('UNAUTHORIZED', '请先登录');
+    return user.id;
+}
 
 /**
  * 获取用户的所有方案
@@ -40,13 +47,12 @@ export async function getPlanById(planId) {
  * 创建方案
  */
 export async function createPlan({ name, score, province, subjectType, year }) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('请先登录');
+    const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
         .from('plans')
         .insert({
-            user_id: user.id,
+            user_id: userId,
             name: name || '我的方案',
             score,
             province,
@@ -59,10 +65,38 @@ export async function createPlan({ name, score, province, subjectType, year }) {
     return data;
 }
 
+async function verifyPlanOwnership(planId) {
+    const userId = await getCurrentUserId();
+    const { data, error } = await supabase
+        .from('plans')
+        .select('id')
+        .eq('id', planId)
+        .eq('user_id', userId)
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) throw createAppError('NOT_FOUND', '方案不存在或无权操作');
+    return userId;
+}
+
+async function verifyPlanItemOwnership(itemId) {
+    const userId = await getCurrentUserId();
+    const { data, error } = await supabase
+        .from('plan_items')
+        .select('id, plans!inner(user_id)')
+        .eq('id', itemId)
+        .single();
+    if (error) throw error;
+    if (!data || data.plans?.user_id !== userId) {
+        throw createAppError('NOT_FOUND', '志愿条目不存在或无权操作');
+    }
+    return userId;
+}
+
 /**
  * 更新方案
  */
 export async function updatePlan(planId, updates) {
+    await verifyPlanOwnership(planId);
     const { data, error } = await supabase
         .from('plans')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -77,6 +111,7 @@ export async function updatePlan(planId, updates) {
  * 删除方案
  */
 export async function deletePlan(planId) {
+    await verifyPlanOwnership(planId);
     const { error } = await supabase.from('plans').delete().eq('id', planId);
     if (error) throw error;
 }
@@ -85,6 +120,7 @@ export async function deletePlan(planId) {
  * 添加方案条目
  */
 export async function addPlanItem(planId, { universityId, majorId, riskLevel, sortOrder, notes }) {
+    await verifyPlanOwnership(planId);
     const { data, error } = await supabase
         .from('plan_items')
         .insert({
@@ -109,6 +145,7 @@ export async function addPlanItem(planId, { universityId, majorId, riskLevel, so
  * 删除方案条目
  */
 export async function removePlanItem(itemId) {
+    await verifyPlanItemOwnership(itemId);
     const { error } = await supabase.from('plan_items').delete().eq('id', itemId);
     if (error) throw error;
 }
@@ -117,6 +154,9 @@ export async function removePlanItem(itemId) {
  * 更新条目排序
  */
 export async function reorderPlanItems(items) {
+    for (const [index, item] of items.entries()) {
+        await verifyPlanItemOwnership(item.id);
+    }
     const updates = items.map((item, index) =>
         supabase.from('plan_items').update({ sort_order: index }).eq('id', item.id)
     );

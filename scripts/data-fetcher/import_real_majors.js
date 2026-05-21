@@ -3,15 +3,22 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-const envContent = fs.readFileSync('/Users/tianxingjian/Aisoftware/Planning College Application Platform/.env', 'utf8');
+const path = require('path');
+const envPath = path.resolve(__dirname, '../../.env');
+const envContent = fs.readFileSync(envPath, 'utf8');
 const env = {};
 envContent.split('\n').forEach(line => {
     const idx = line.indexOf('=');
     if (idx > 0) env[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
 });
 
-const SUPABASE_URL = env['VITE_SUPABASE_URL'] || 'https://ysrcdhxjbllznvekapyy.supabase.co';
+const SUPABASE_URL = env['VITE_SUPABASE_URL'];
 const SUPABASE_KEY = env['VITE_SUPABASE_ANON_KEY'];
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('Missing Supabase configuration in .env');
+    process.exit(1);
+}
 const API_BASE = 'https://api.eol.cn/gkcx/api/';
 const DELAY = 200;
 

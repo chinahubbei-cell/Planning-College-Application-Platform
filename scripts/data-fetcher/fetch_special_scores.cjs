@@ -19,8 +19,13 @@ envContent.split('\n').forEach(line => {
     if (idx > 0) env[line.substring(0, idx).trim()] = line.substring(idx + 1).trim();
 });
 
-const SUPABASE_URL = env['VITE_SUPABASE_URL'] || 'https://ysrcdhxjbllznvekapyy.supabase.co';
+const SUPABASE_URL = env['VITE_SUPABASE_URL'];
 const SUPABASE_KEY = env['VITE_SUPABASE_ANON_KEY'];
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('Missing Supabase configuration in .env');
+    process.exit(1);
+}
 const DELAY = 300;
 
 // 湖北省 ID = 42，优先只抓湖北

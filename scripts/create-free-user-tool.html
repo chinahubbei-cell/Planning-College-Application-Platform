@@ -234,8 +234,8 @@
                 <input
                     type="text"
                     id="supabaseUrl"
-                    value="https://ysrcdhxjbllznvekapyy.supabase.co"
                     readonly
+                    placeholder="从 .env 获取 VITE_SUPABASE_URL"
                 >
             </div>
 
@@ -256,8 +256,8 @@
                 <input
                     type="text"
                     id="password"
-                    value="Free@2026"
-                    placeholder="默认: Free@2026"
+                    value=""
+                    placeholder="输入新用户密码"
                 >
             </div>
 
@@ -287,7 +287,11 @@
 
             const serviceRoleKey = document.getElementById('serviceRoleKey').value.trim();
             const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value.trim() || 'Free@2026';
+            const password = document.getElementById('password').value.trim();
+            if (!password) {
+                showResult('error', '<h3>❌ 错误</h3><p>请输入密码</p>');
+                return;
+            }
 
             const submitBtn = document.getElementById('submitBtn');
             const loading = document.getElementById('loading');

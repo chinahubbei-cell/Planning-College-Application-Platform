@@ -16,10 +16,18 @@ console.log('🔍 检查 user_access 表和 RLS 策略...\n');
 async function checkTableAndPolicies() {
   const supabase = createClient(supabaseUrl, anonKey);
 
+  const adminEmail = process.env.TEST_ADMIN_EMAIL || 'admin@gaokao.com';
+  const adminPassword = process.env.TEST_ADMIN_PASSWORD;
+
+  if (!adminPassword) {
+    console.error('❌ 请通过环境变量 TEST_ADMIN_PASSWORD 设置管理员密码');
+    return;
+  }
+
   // 先用 admin 登录
   const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-    email: 'admin@gaokao.com',
-    password: 'Admin@2026'
+    email: adminEmail,
+    password: adminPassword
   });
 
   if (adminError) {
@@ -80,9 +88,18 @@ create policy "user_access_update_own" on public.user_access
   console.log('\n2️⃣ 检查 test@gaokao.com 的 user_access 记录...');
 
   // 登录 test 用户
+  const testEmail = process.env.TEST_USER_EMAIL || 'test@gaokao.com';
+  const testPassword = process.env.TEST_USER_PASSWORD;
+
+  if (!testPassword) {
+    console.error('❌ 请通过环境变量 TEST_USER_PASSWORD 设置测试用户密码');
+    await supabase.auth.signOut();
+    return;
+  }
+
   const { data: testData, error: testError } = await supabase.auth.signInWithPassword({
-    email: 'test@gaokao.com',
-    password: 'Test@2026'
+    email: testEmail,
+    password: testPassword
   });
 
   if (testError) {

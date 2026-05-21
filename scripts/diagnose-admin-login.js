@@ -20,7 +20,7 @@ if (!supabaseUrl) {
 // 使用 anon key（普通用户权限）
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const adminEmail = 'admin@gaokao.com';
+const adminEmail = process.env.TEST_ADMIN_EMAIL || 'admin@gaokao.com';
 
 console.log('🔍 开始诊断登录问题...\n');
 
@@ -62,7 +62,12 @@ create policy "user_profiles_update_own" on public.user_profiles
 
   // 2. 尝试用密码登录（检测用户是否存在）
   console.log('2️⃣ 检查用户账户...');
-  const testPassword = 'Admin@2026';
+  const testPassword = process.env.TEST_ADMIN_PASSWORD;
+
+  if (!testPassword) {
+    console.error('   ❌ 请通过环境变量 TEST_ADMIN_PASSWORD 设置管理员密码');
+    return;
+  }
 
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: adminEmail,
@@ -163,7 +168,7 @@ on conflict (id) do update set role = 'admin';`);
   console.log('\n📝 登录信息:');
   console.log('   URL: http://localhost:5173/login');
   console.log('   Email:', adminEmail);
-  console.log('   Password:', testPassword);
+  console.log('   Password: (已通过环境变量设置，请妥善保管)');
   console.log('\n⚠️  如果仍然无法登录，请检查:');
   console.log('   1. 浏览器控制台 (F12) 的错误信息');
   console.log('   2. Network 标签页的 API 请求状态');
