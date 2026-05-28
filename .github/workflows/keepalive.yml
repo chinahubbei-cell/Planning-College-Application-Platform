@@ -1,0 +1,24 @@
+name: Supabase 防休眠
+
+on:
+  schedule:
+    # 北京时间每天早上 8:30 (UTC 0:30)
+    - cron: '30 0 * * *'
+  # 也允许手动触发
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/universities?select=count" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          if [ "$response" = "200" ]; then
+            echo "✅ Supabase ping 成功 (HTTP $response)"
+          else
+            echo "⚠️  Supabase ping 返回 HTTP $response"
+          fi
