@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getPlans, createPlan, deletePlan } from '../../services/planService';
 import useAuthStore from '../../stores/useAuthStore';
@@ -6,7 +6,7 @@ import Card, { CardBody } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
-import { PROVINCES, RISK_LEVELS } from '../../utils/constants';
+import { PROVINCES } from '../../utils/constants';
 import './Plan.css';
 
 export default function PlanList() {
@@ -25,12 +25,7 @@ export default function PlanList() {
     const [creating, setCreating] = useState(false);
     const [deletingPlanId, setDeletingPlanId] = useState(null);
 
-    useEffect(() => {
-        if (user) fetchPlans();
-        else setLoading(false);
-    }, [user]);
-
-    const fetchPlans = async () => {
+    const fetchPlans = useCallback(async () => {
         setLoading(true);
         try {
             const data = await getPlans();
@@ -40,7 +35,14 @@ export default function PlanList() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        queueMicrotask(() => {
+            if (user) fetchPlans();
+            else setLoading(false);
+        });
+    }, [fetchPlans, user]);
 
     const handleCreate = async (e) => {
         e.preventDefault();

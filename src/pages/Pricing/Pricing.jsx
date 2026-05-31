@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/common/Button';
 import Card, { CardBody } from '../../components/common/Card';
@@ -16,16 +16,7 @@ export default function Pricing() {
   const [access, setAccess] = useState(null);
   const [loadingAccess, setLoadingAccess] = useState(true);
 
-  useEffect(() => {
-    if (!configReady) {
-      setLoadingAccess(false);
-      setError('订阅服务配置缺失，请联系管理员检查环境变量');
-      return;
-    }
-    loadAccess();
-  }, [configReady]);
-
-  const loadAccess = async () => {
+  const loadAccess = useCallback(async () => {
     setLoadingAccess(true);
     try {
       const data = await getMyAccess();
@@ -38,7 +29,18 @@ export default function Pricing() {
     } finally {
       setLoadingAccess(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      if (!configReady) {
+        setLoadingAccess(false);
+        setError('订阅服务配置缺失，请联系管理员检查环境变量');
+        return;
+      }
+      loadAccess();
+    });
+  }, [configReady, loadAccess]);
 
   const handleBuy = async () => {
     if (!configReady) {

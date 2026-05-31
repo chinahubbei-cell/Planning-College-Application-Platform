@@ -5,12 +5,14 @@ import Card, { CardBody, CardHeader } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
 import './Major.css';
 
 export default function MajorDetail() {
     const { id } = useParams();
     const [major, setMajor] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         async function fetchData() {
@@ -18,8 +20,11 @@ export default function MajorDetail() {
             try {
                 const data = await getMajorById(Number(id));
                 setMajor(data);
+                setError('');
             } catch (err) {
                 console.error('Failed to fetch major:', err);
+                setMajor(null);
+                setError(err.message || '加载专业信息失败');
             } finally {
                 setLoading(false);
             }
@@ -28,6 +33,25 @@ export default function MajorDetail() {
     }, [id]);
 
     if (loading) return <Loading text="加载专业信息..." />;
+    if (error) {
+        return (
+            <div className="uni-empty" style={{ padding: '4rem' }}>
+                {error.includes('配置缺失') ? (
+                    <ConfigErrorNotice
+                        serviceName="专业数据服务"
+                        detail="当前环境缺少 Supabase 配置，专业详情请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                    />
+                ) : (
+                    <>
+                        <span className="uni-empty__icon">⚠️</span>
+                        <h3>专业信息暂时不可用</h3>
+                        <p>{error}</p>
+                        <Link to="/majors"><Button variant="outline">返回专业列表</Button></Link>
+                    </>
+                )}
+            </div>
+        );
+    }
     if (!major) {
         return (
             <div className="uni-empty" style={{ padding: '4rem' }}>

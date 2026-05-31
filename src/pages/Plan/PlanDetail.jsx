@@ -40,10 +40,12 @@ export default function PlanDetail() {
     }, []);
 
     useEffect(() => {
-        if (user) {
-            fetchPlan();
-            fetchAccess();
-        } else setLoading(false);
+        queueMicrotask(() => {
+            if (user) {
+                fetchPlan();
+                fetchAccess();
+            } else setLoading(false);
+        });
     }, [fetchAccess, fetchPlan, user]);
 
     const handleExportReport = async () => {

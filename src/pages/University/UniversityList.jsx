@@ -58,12 +58,12 @@ export default function UniversityList() {
     }, [debouncedSearch, province, level, type, page]);
 
     useEffect(() => {
-        fetchData();
+        queueMicrotask(fetchData);
     }, [fetchData]);
 
     // Reset page when filters change
     useEffect(() => {
-        setPage(1);
+        queueMicrotask(() => setPage(1));
     }, [debouncedSearch, province, level, type]);
 
     const clearFilters = () => {

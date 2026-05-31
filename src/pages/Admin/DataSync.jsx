@@ -186,7 +186,7 @@ export default function DataSyncAdmin() {
     }, []);
 
     useEffect(() => {
-        fetchLogs();
+        queueMicrotask(fetchLogs);
         const timeoutTimers = timeoutTimersRef.current;
         return () => {
             if (pollTimerRef.current) clearInterval(pollTimerRef.current);

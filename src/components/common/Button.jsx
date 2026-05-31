@@ -22,6 +22,7 @@ export default function Button({
         <button
             className={`btn btn--${variant} btn--${size} ${fullWidth ? 'btn--full' : ''} ${className}`}
             disabled={disabled || loading}
+            type="button"
             {...rest}
         >
             {loading && <span className="btn__spinner" />}

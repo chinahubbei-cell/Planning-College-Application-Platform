@@ -101,64 +101,69 @@ serve(async (req) => {
       throw new Error(`Failed to create sync log: ${logError?.message}`)
     }
 
-    // 4. Run Task Asynchronously (Fire and Forget)
-      // Using an IIFE to background the work
-      ; (async () => {
-        try {
-          let recordsAdded = 0;
-          let message = 'Sync completed successfully';
+    // 4. Run Task Asynchronously and keep it alive after returning the response.
+    const backgroundTask = (async () => {
+      try {
+        let recordsAdded = 0
+        let message = 'Sync completed successfully'
 
-          console.log(`Starting background task: ${task_type}`);
+        console.log(`Starting background task: ${task_type}`)
 
-          switch (task_type) {
-            case 'UNIVERSITIES':
-              const uniResult = await syncUniversities(adminClient);
-              recordsAdded = uniResult.recordsAdded;
-              if (uniResult.message) message = uniResult.message;
-              break;
-            case 'UNIVERSITY_DETAILS':
-              const detailResult = await syncUniversityDetails(adminClient);
-              recordsAdded = detailResult.recordsAdded;
-              if (detailResult.message) message = detailResult.message;
-              break;
-            case 'MAJORS':
-              const majorResult = await syncMajors(adminClient);
-              recordsAdded = majorResult.recordsAdded;
-              if (majorResult.message) message = majorResult.message;
-              break;
-            case 'SCORES':
-              const scoreResult = await syncScores(adminClient);
-              recordsAdded = scoreResult.recordsAdded;
-              if (scoreResult.message) message = scoreResult.message;
-              break;
+        switch (task_type) {
+          case 'UNIVERSITIES': {
+            const uniResult = await syncUniversities(adminClient)
+            recordsAdded = uniResult.recordsAdded
+            if (uniResult.message) message = uniResult.message
+            break
           }
-
-          // Update Log to SUCCESS
-          await adminClient
-            .from('data_sync_logs')
-            .update({
-              status: 'SUCCESS',
-              records_added: recordsAdded,
-              finished_at: new Date().toISOString(),
-              message
-            })
-            .eq('id', logEntry.id)
-
-          console.log(`Task ${task_type} completed. Added: ${recordsAdded}`);
-
-        } catch (err) {
-          console.error(`Error in background task ${task_type}:`, err);
-          // Update Log to FAILED
-          await adminClient
-            .from('data_sync_logs')
-            .update({
-              status: 'FAILED',
-              finished_at: new Date().toISOString(),
-              message: err.message || String(err)
-            })
-            .eq('id', logEntry.id)
+          case 'UNIVERSITY_DETAILS': {
+            const detailResult = await syncUniversityDetails(adminClient)
+            recordsAdded = detailResult.recordsAdded
+            if (detailResult.message) message = detailResult.message
+            break
+          }
+          case 'MAJORS': {
+            const majorResult = await syncMajors(adminClient)
+            recordsAdded = majorResult.recordsAdded
+            if (majorResult.message) message = majorResult.message
+            break
+          }
+          case 'SCORES': {
+            const scoreResult = await syncScores(adminClient)
+            recordsAdded = scoreResult.recordsAdded
+            if (scoreResult.message) message = scoreResult.message
+            break
+          }
         }
-      })();
+
+        await adminClient
+          .from('data_sync_logs')
+          .update({
+            status: 'SUCCESS',
+            records_added: recordsAdded,
+            finished_at: new Date().toISOString(),
+            message,
+          })
+          .eq('id', logEntry.id)
+
+        console.log(`Task ${task_type} completed. Added: ${recordsAdded}`)
+      } catch (err) {
+        console.error(`Error in background task ${task_type}:`, err)
+        await adminClient
+          .from('data_sync_logs')
+          .update({
+            status: 'FAILED',
+            finished_at: new Date().toISOString(),
+            message: err instanceof Error ? err.message : String(err),
+          })
+          .eq('id', logEntry.id)
+      }
+    })()
+
+    const edgeRuntime = (globalThis as unknown as {
+      EdgeRuntime?: { waitUntil: (promise: Promise<unknown>) => void }
+    }).EdgeRuntime
+    edgeRuntime?.waitUntil(backgroundTask)
 
     // 5. Return Success Immediately
     return jsonResponse({
@@ -167,6 +172,6 @@ serve(async (req) => {
     })
 
   } catch (error) {
-    return errorResponse(error.message, 500, 'UNKNOWN_ERROR')
+    return errorResponse(error instanceof Error ? error.message : String(error), 500, 'UNKNOWN_ERROR')
   }
 })

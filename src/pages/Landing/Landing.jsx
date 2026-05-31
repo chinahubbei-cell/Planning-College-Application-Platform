@@ -12,6 +12,7 @@ function CountUp({ end, duration = 2000, suffix = '' }) {
     const hasAnimated = useRef(false);
 
     useEffect(() => {
+        let animationId;
         const observer = new IntersectionObserver(
             ([entry]) => {
                 if (entry.isIntersecting && !hasAnimated.current) {
@@ -25,15 +26,18 @@ function CountUp({ end, duration = 2000, suffix = '' }) {
                         // easeOutQuart
                         const eased = 1 - Math.pow(1 - progress, 4);
                         setCount(Math.floor(start + (end - start) * eased));
-                        if (progress < 1) requestAnimationFrame(animate);
+                        if (progress < 1) animationId = requestAnimationFrame(animate);
                     }
-                    requestAnimationFrame(animate);
+                    animationId = requestAnimationFrame(animate);
                 }
             },
             { threshold: 0.3 }
         );
         if (ref.current) observer.observe(ref.current);
-        return () => observer.disconnect();
+        return () => {
+            observer.disconnect();
+            if (animationId) cancelAnimationFrame(animationId);
+        };
     }, [end, duration]);
 
     return (
@@ -55,9 +59,10 @@ function ParticleBackground() {
         let particles = [];
 
         function resize() {
-            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
-            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
-            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            const pixelRatio = window.devicePixelRatio || 1;
+            canvas.width = canvas.offsetWidth * pixelRatio;
+            canvas.height = canvas.offsetHeight * pixelRatio;
+            ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
         }
 
         function createParticles() {
@@ -116,14 +121,15 @@ function ParticleBackground() {
         resize();
         createParticles();
         draw();
-        window.addEventListener('resize', () => {
+        const handleResize = () => {
             resize();
             createParticles();
-        });
+        };
+        window.addEventListener('resize', handleResize);
 
         return () => {
             cancelAnimationFrame(animationId);
-            window.removeEventListener('resize', resize);
+            window.removeEventListener('resize', handleResize);
         };
     }, []);
 

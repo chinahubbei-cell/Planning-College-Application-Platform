@@ -46,8 +46,10 @@ export default function Profile() {
     }, [user]);
 
     useEffect(() => {
-        if (user) fetchData();
-        else setLoading(false);
+        queueMicrotask(() => {
+            if (user) fetchData();
+            else setLoading(false);
+        });
     }, [fetchData, user]);
 
     const handleSave = async () => {

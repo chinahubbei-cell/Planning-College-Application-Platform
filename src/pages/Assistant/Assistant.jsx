@@ -125,7 +125,7 @@ export default function Assistant() {
                         />
                     )}
                     <div className="assistant-sidebar__badge">
-                        <span className="assistant-badge">🤖 智谱 GLM-4 驱动</span>
+                        <span className="assistant-badge">🤖 智谱 AI 驱动</span>
                     </div>
                 </aside>
 

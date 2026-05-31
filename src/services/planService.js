@@ -154,7 +154,7 @@ export async function removePlanItem(itemId) {
  * 更新条目排序
  */
 export async function reorderPlanItems(items) {
-    for (const [index, item] of items.entries()) {
+    for (const item of items) {
         await verifyPlanItemOwnership(item.id);
     }
     const updates = items.map((item, index) =>

@@ -49,13 +49,15 @@ export default function Recommend() {
             return;
         }
 
-        setFormData((prev) => ({
-            ...prev,
-            score: nextScore ?? prev.score,
-            province: nextProvince ?? prev.province,
-            subjectType: nextSubjectType ?? prev.subjectType,
-            year: nextYear ? Number(nextYear) || prev.year : prev.year,
-        }));
+        queueMicrotask(() => {
+            setFormData((prev) => ({
+                ...prev,
+                score: nextScore ?? prev.score,
+                province: nextProvince ?? prev.province,
+                subjectType: nextSubjectType ?? prev.subjectType,
+                year: nextYear ? Number(nextYear) || prev.year : prev.year,
+            }));
+        });
     }, [searchParams]);
 
     const handleOpenPlanModal = async (e, item, riskKey) => {

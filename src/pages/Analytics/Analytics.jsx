@@ -12,6 +12,7 @@ import { CanvasRenderer } from 'echarts/renderers';
 import { getUniversityStats, getScoreStats, getMajorStats } from '../../services/analyticsService';
 import Card, { CardBody, CardHeader } from '../../components/common/Card';
 import Loading from '../../components/common/Loading';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
 import './Analytics.css';
 
 echarts.use([PieChart, BarChart, LineChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, CanvasRenderer]);
@@ -23,6 +24,7 @@ export default function Analytics() {
     const [scoreStats, setScoreStats] = useState(null);
     const [majorStats, setMajorStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         async function fetchAll() {
@@ -36,8 +38,10 @@ export default function Analytics() {
                 setUniStats(uni);
                 setScoreStats(score);
                 setMajorStats(major);
+                setError('');
             } catch (err) {
                 console.error('Analytics error:', err);
+                setError(err.message || '加载数据分析失败');
             } finally {
                 setLoading(false);
             }
@@ -46,6 +50,35 @@ export default function Analytics() {
     }, []);
 
     if (loading) return <Loading text="加载数据分析..." />;
+    if (error) {
+        return (
+            <div className="analytics-page container animate-fade-in-up">
+                <div className="analytics-header">
+                    <h1 className="analytics-header__title">📊 数据分析</h1>
+                    <p className="analytics-header__desc">多维度可视化院校、分数线、专业数据</p>
+                </div>
+                {error.includes('配置缺失') ? (
+                    <ConfigErrorNotice
+                        serviceName="数据分析服务"
+                        detail="当前环境缺少 Supabase 配置，数据分析请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                    />
+                ) : (
+                    <div
+                        className="uni-empty animate-fade-in"
+                        style={{
+                            padding: '2rem',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            background: 'rgba(127, 29, 29, 0.18)',
+                        }}
+                    >
+                        <span className="uni-empty__icon">⚠️</span>
+                        <h3>数据分析暂时不可用</h3>
+                        <p>{error}</p>
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     // --- Chart Options ---
 

@@ -5,11 +5,13 @@ import Card, { CardBody } from '../../components/common/Card';
 import Tag from '../../components/common/Tag';
 import Button from '../../components/common/Button';
 import Loading from '../../components/common/Loading';
+import ConfigErrorNotice from '../../components/common/ConfigErrorNotice';
 import './Major.css';
 
 export default function MajorList() {
     const [majors, setMajors] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
@@ -46,16 +48,21 @@ export default function MajorList() {
             setMajors(result.data || []);
             setTotalCount(result.count || 0);
             setTotalPages(result.totalPages || 1);
+            setError('');
         } catch (err) {
             console.error('Failed to fetch majors:', err);
+            setMajors([]);
+            setTotalCount(0);
+            setTotalPages(1);
+            setError(err.message || '加载专业数据失败');
         } finally {
             setLoading(false);
         }
     }, [debouncedSearch, category, page]);
 
-    useEffect(() => { fetchData(); }, [fetchData]);
+    useEffect(() => { queueMicrotask(fetchData); }, [fetchData]);
 
-    useEffect(() => { setPage(1); }, [debouncedSearch, category]);
+    useEffect(() => { queueMicrotask(() => setPage(1)); }, [debouncedSearch, category]);
 
     const clearFilters = () => {
         setSearch('');
@@ -127,16 +134,41 @@ export default function MajorList() {
             </div>
 
             {/* Results */}
+            {error && (
+                <div style={{ marginBottom: '1rem' }}>
+                    {error.includes('配置缺失') ? (
+                        <ConfigErrorNotice
+                            serviceName="专业数据服务"
+                            detail="当前环境缺少 Supabase 配置，专业列表请求已被禁用。请检查 VITE_SUPABASE_URL 与 VITE_SUPABASE_ANON_KEY。"
+                        />
+                    ) : (
+                        <div
+                            className="uni-empty animate-fade-in"
+                            style={{
+                                padding: '2rem',
+                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                background: 'rgba(127, 29, 29, 0.18)',
+                            }}
+                        >
+                            <span className="uni-empty__icon">⚠️</span>
+                            <h3>专业数据暂时不可用</h3>
+                            <p>{error}</p>
+                            <Button variant="outline" onClick={fetchData}>重新加载</Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {loading ? (
                 <Loading text="加载专业数据..." />
-            ) : majors.length === 0 ? (
+            ) : !error && majors.length === 0 ? (
                 <div className="uni-empty animate-fade-in">
                     <span className="uni-empty__icon">📚</span>
                     <h3>未找到匹配的专业</h3>
                     <p>请尝试调整搜索条件</p>
                     {hasFilters && <Button variant="outline" onClick={clearFilters}>清除筛选</Button>}
                 </div>
-            ) : (
+            ) : !error ? (
                 <>
                     <div className="major-grid">
                         {majors.map((major, i) => (
@@ -190,7 +222,7 @@ export default function MajorList() {
                         </div>
                     )}
                 </>
-            )}
+            ) : null}
         </div>
     );
 }
